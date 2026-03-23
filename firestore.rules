@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - role: string (required, 'admin' | 'user')
+    //   - credits: number (required)
+    //
+    // Collection: videos
+    // Document ID: auto-generated
+    // Fields:
+    //   - prompt: string (required)
+    //   - status: string (required, 'pending' | 'processing' | 'completed' | 'failed')
+    //   - downloadUrl: string (optional)
+    //   - userId: string (required)
+    //   - createdAt: string (required)
+    //
+    // Collection: settings
+    // Document ID: 'global'
+    // Fields:
+    //   - freeMode: bool (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "businessonline.6251@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'credits']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['admin', 'user'] &&
+             data.credits is number;
+    }
+
+    function isValidVideo(data) {
+      return data.keys().hasAll(['prompt', 'status', 'userId', 'createdAt']) &&
+             data.prompt is string && data.prompt.size() < 5000 &&
+             data.status in ['pending', 'processing', 'completed', 'failed'] &&
+             data.userId == request.auth.uid &&
+             data.createdAt is string;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      allow create: if isAuthenticated() && 
+                      isValidUser(request.resource.data) && 
+                      request.resource.data.uid == request.auth.uid &&
+                      request.resource.data.role == 'user' &&
+                      request.resource.data.credits == 5;
+                      
+      allow update: if isAdmin() || 
+                      (isOwner(userId) && 
+                       isValidUser(request.resource.data) &&
+                       request.resource.data.role == resource.data.role &&
+                       request.resource.data.credits == resource.data.credits);
+    }
+
+    match /videos/{videoId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidVideo(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /settings/global {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

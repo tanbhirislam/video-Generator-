@@ -1,0 +1,52 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user profile information, role, and credits.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User's email address" },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "User's role in the system" },
+        "credits": { "type": "integer", "description": "Number of credits available for video generation" }
+      },
+      "required": ["uid", "email", "role", "credits"]
+    },
+    "Video": {
+      "title": "Video Generation",
+      "description": "Stores video generation requests and status.",
+      "type": "object",
+      "properties": {
+        "prompt": { "type": "string", "description": "The prompt used for video generation" },
+        "status": { "type": "string", "enum": ["pending", "processing", "completed", "failed"], "description": "Current status of the generation" },
+        "downloadUrl": { "type": "string", "format": "uri", "description": "URL to download the generated video" },
+        "userId": { "type": "string", "description": "UID of the user who requested the video" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" }
+      },
+      "required": ["prompt", "status", "userId", "createdAt"]
+    },
+    "Settings": {
+      "title": "Global Settings",
+      "description": "System-wide settings managed by admins.",
+      "type": "object",
+      "properties": {
+        "freeMode": { "type": "boolean", "description": "If true, users can generate videos without credits" }
+      },
+      "required": ["freeMode"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user profiles"
+    },
+    "/videos/{videoId}": {
+      "schema": "Video",
+      "description": "Video generation records"
+    },
+    "/settings/global": {
+      "schema": "Settings",
+      "description": "Global system settings"
+    }
+  }
+}
