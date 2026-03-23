@@ -49,27 +49,29 @@ export default function App() {
           }
         });
 
-        return () => unsubProfile();
+        // Global settings listener (Only when authenticated)
+        const settingsDoc = doc(db, 'settings', 'global');
+        const unsubSettings = onSnapshot(settingsDoc, (doc) => {
+          if (doc.exists()) {
+            setSettings(doc.data() as GlobalSettings);
+          }
+        }, (err) => {
+          console.error("Settings listener error:", err);
+        });
+
+        setLoading(false);
+        return () => {
+          unsubProfile();
+          unsubSettings();
+        };
       } else {
         setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    // Global settings listener
-    const settingsDoc = doc(db, 'settings', 'global');
-    const unsubSettings = onSnapshot(settingsDoc, (doc) => {
-      if (doc.exists()) {
-        setSettings(doc.data() as GlobalSettings);
-      } else {
-        // Initialize settings if not exists
-        setDoc(settingsDoc, { freeMode: false });
+        setLoading(false);
       }
     });
 
     return () => {
       unsubscribeAuth();
-      unsubSettings();
     };
   }, []);
 
